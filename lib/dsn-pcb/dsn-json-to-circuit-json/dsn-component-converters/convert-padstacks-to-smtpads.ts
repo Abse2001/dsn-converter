@@ -124,18 +124,36 @@ export function convertPadstacksToSmtPads(
             shapes: padstack.shapes,
             layer,
           })
-          pcbPad = {
-            type: "pcb_smtpad",
-            pcb_smtpad_id: `pcb_smtpad_${componentId}_${place.refdes}_${Number(pin.pin_number) - 1}`,
-            pcb_component_id: `${componentId}_${place.refdes}`,
-            pcb_port_id: `pcb_port_${componentId}-Pad${pin.pin_number}_${place.refdes}`,
-            shape: "rect",
-            x: circuitX,
-            y: circuitY,
-            width,
-            height,
-            layer,
-            port_hints: [pin.pin_number.toString()],
+          if (polygonShape && pin.rotation) {
+            pcbPad = {
+              type: "pcb_smtpad",
+              pcb_smtpad_id: `pcb_smtpad_${componentId}_${place.refdes}_${Number(pin.pin_number) - 1}`,
+              pcb_component_id: `${componentId}_${place.refdes}`,
+              pcb_port_id: `pcb_port_${componentId}-Pad${pin.pin_number}_${place.refdes}`,
+              shape: "rotated_rect",
+              x: circuitX,
+              y: circuitY,
+              width,
+              height,
+              layer,
+              port_hints: [pin.pin_number.toString()],
+              ccw_rotation: pin.rotation,
+            }
+            console.log("pcbPad", pcbPad)
+          } else {
+            pcbPad = {
+              type: "pcb_smtpad",
+              pcb_smtpad_id: `pcb_smtpad_${componentId}_${place.refdes}_${Number(pin.pin_number) - 1}`,
+              pcb_component_id: `${componentId}_${place.refdes}`,
+              pcb_port_id: `pcb_port_${componentId}-Pad${pin.pin_number}_${place.refdes}`,
+              shape: "rect",
+              x: circuitX,
+              y: circuitY,
+              width,
+              height,
+              layer,
+              port_hints: [pin.pin_number.toString()],
+            }
           }
         } else {
           pcbPad = {

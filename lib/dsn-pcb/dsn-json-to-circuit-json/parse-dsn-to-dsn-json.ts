@@ -56,6 +56,7 @@ export function parseDsnToDsnJson(dsnString: string): DsnJson {
     } else if (rootNode === "pcb") {
       // Regular PCB file processing
       const pcb = processPcbNode(ast) as DsnPcb
+
       return pcb
     }
   }
@@ -584,42 +585,50 @@ function processPin(nodes: ASTNode[]): Pin | null {
 
     pin.pin_number = pinNumber
 
-    // Parse coordinates
+    // Parse coordinates and optional rotation:
     let xValue: number | undefined
     let yValue: number | undefined
+    let rotationValue: number | undefined
 
     for (let i = 3; i < nodes.length; i++) {
       const node = nodes[i]
       const nextNode = nodes[i + 1]
 
-      if (node.type === "Atom") {
+      if (node.type === "Atom" && typeof node.value === "number") {
+        // First number: x coordinate
         if (xValue === undefined) {
-          // Try to parse X coordinate
-          if (typeof node.value === "number") {
-            if (
-              nextNode?.type === "Atom" &&
-              String(nextNode.value).toLowerCase().startsWith("e")
-            ) {
-              // Handle scientific notation
-              xValue = Number(`${node.value}${nextNode.value}`)
-              i++ // Skip the exponent part
-            } else {
-              xValue = node.value
-            }
+          if (
+            nextNode?.type === "Atom" &&
+            String(nextNode.value).toLowerCase().startsWith("e")
+          ) {
+            xValue = Number(`${node.value}${nextNode.value}`)
+            i++
+          } else {
+            xValue = node.value
           }
-        } else if (yValue === undefined) {
-          // Try to parse Y coordinate
-          if (typeof node.value === "number") {
-            if (
-              nextNode?.type === "Atom" &&
-              String(nextNode.value).toLowerCase().startsWith("e")
-            ) {
-              // Handle scientific notation
-              yValue = Number(`${node.value}${nextNode.value}`)
-              i++ // Skip the exponent part
-            } else {
-              yValue = node.value
-            }
+        }
+        // Second number: y coordinate
+        else if (yValue === undefined) {
+          if (
+            nextNode?.type === "Atom" &&
+            String(nextNode.value).toLowerCase().startsWith("e")
+          ) {
+            yValue = Number(`${node.value}${nextNode.value}`)
+            i++
+          } else {
+            yValue = node.value
+          }
+        }
+        // Third number (if present): rotation value
+        else if (rotationValue === undefined) {
+          if (
+            nextNode?.type === "Atom" &&
+            String(nextNode.value).toLowerCase().startsWith("e")
+          ) {
+            rotationValue = Number(`${node.value}${nextNode.value}`)
+            i++
+          } else {
+            rotationValue = node.value
           }
         }
       }
@@ -631,6 +640,8 @@ function processPin(nodes: ASTNode[]): Pin | null {
 
     pin.x = xValue
     pin.y = yValue
+    // Use the parsed rotation value if available, otherwise default to 0
+    pin.rotation = rotationValue !== undefined ? rotationValue : 0
 
     return pin as Pin
   } catch (error) {

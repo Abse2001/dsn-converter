@@ -1,14 +1,12 @@
 import type {
   AnyCircuitElement,
   PcbComponent,
-  PcbPort,
   SourceComponentBase,
-  SourcePort,
 } from "circuit-json"
 import { getComponentValue } from "lib/utils/get-component-value"
 import { getFootprintName } from "lib/utils/get-footprint-name"
 import { applyToPoint, scale } from "transformation-matrix"
-import type { ComponentGroup, DsnPcb, Image, Padstack, Pin } from "../types"
+import type { ComponentGroup, DsnPcb, Image } from "../types"
 import { getPadstackName } from "lib/utils/get-padstack-name"
 import { createRectangularPadstack } from "lib/utils/create-padstack"
 import { su } from "@tscircuit/soup-util"
@@ -84,7 +82,7 @@ export function processComponentsAndPads(
 
     // Add padstacks for SMT pads
     for (const pad of componentGroup.pcb_smtpads) {
-      if (pad.shape === "rect") {
+      if (pad.shape === "rect" || pad.shape === "rotated_rect") {
         const padstackName = getPadstackName({
           shape: "rect",
           width: pad.width * 1000,
@@ -110,39 +108,46 @@ export function processComponentsAndPads(
     const image: Image = {
       name: footprintName,
       outlines: [],
-      pins: componentGroup.pcb_smtpads
-        .map((pad) => {
-          const pcbComponent = circuitElements.find(
-            (e) =>
-              e.type === "pcb_component" &&
-              e.source_component_id ===
-                firstComponent.sourceComponent?.source_component_id,
-          ) as PcbComponent
-          if (pad.shape === "rect") {
-            // Find the corresponding pcb_port and its source_port
-            const pcbPort = su(circuitElements)
-              .pcb_port.list()
-              .find((e) => e.pcb_port_id === pad.pcb_port_id)
-            const sourcePort = su(circuitElements)
-              .source_port.list()
-              .find((e) => e.source_port_id === pcbPort?.source_port_id)
-            return {
+      pins: componentGroup.pcb_smtpads.flatMap((pad) => {
+        const pcbComponent = circuitElements.find(
+          (e) =>
+            e.type === "pcb_component" &&
+            e.source_component_id ===
+              firstComponent.sourceComponent?.source_component_id,
+        ) as PcbComponent
+        if (pad.shape === "rect" || pad.shape === "rotated_rect") {
+          // Find the corresponding pcb_port and its source_port
+          const pcbPort = su(circuitElements)
+            .pcb_port.list()
+            .find((e) => e.pcb_port_id === pad.pcb_port_id)
+          const sourcePort = su(circuitElements)
+            .source_port.list()
+            .find((e) => e.source_port_id === pcbPort?.source_port_id)
+          return [
+            {
               padstack_name: getPadstackName({
                 shape: "rect",
                 width: pad.width * 1000,
                 height: pad.height * 1000,
                 layer: pad.layer,
               }),
-              pin_number:
+              pin_number: Number(
                 sourcePort?.port_hints?.find(
                   (hint) => !Number.isNaN(Number(hint)),
                 ) || 1,
+              ),
               x: (pad.x - pcbComponent.center.x) * 1000,
               y: (pad.y - pcbComponent.center.y) * 1000,
-            }
-          }
-        })
-        .filter((pin): pin is Pin => pin !== undefined),
+              rotation:
+                pad.shape === "rotated_rect" &&
+                typeof pad.ccw_rotation === "number"
+                  ? pad.ccw_rotation
+                  : 0,
+            },
+          ]
+        }
+        return []
+      }),
     }
     pcb.library.images.push(image)
 
@@ -154,7 +159,7 @@ export function processComponentsAndPads(
         x: component.coordinates.x,
         y: component.coordinates.y,
         side: "front" as const,
-        rotation: component.rotation % 90,
+        rotation: component.rotation,
         PN: component.value,
       })),
     }

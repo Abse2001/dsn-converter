@@ -1,9 +1,9 @@
+import { json } from "stream/consumers"
 import type { DsnPcb } from "../types"
 
 export const stringifyDsnJson = (dsnJson: DsnPcb): string => {
   const indent = "  "
   let result = ""
-
   // Helper function to stringify a value with proper formatting
   const stringifyValue = (value: any): string => {
     if (value === null || value === undefined) {
@@ -86,7 +86,7 @@ export const stringifyDsnJson = (dsnJson: DsnPcb): string => {
       result += `${indent}${indent}${indent}(outline ${stringifyPath(outline.path, 4)})\n`
     })
     image.pins.forEach((pin) => {
-      result += `${indent}${indent}${indent}(pin ${pin.padstack_name} ${pin.pin_number} ${pin.x} ${pin.y})\n`
+      result += `${indent}${indent}${indent}(pin ${pin.padstack_name} ${pin.pin_number} ${pin.x} ${pin.y}${pin.rotation !== undefined ? " " + pin.rotation : ""})\n`
     })
     result += `${indent}${indent})\n`
   })
